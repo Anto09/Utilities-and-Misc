@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+
+attribute  vec4 vPosition;
+
+uniform    mat4 modelView;
+uniform    mat4 projection;
+// uniform    vec2 vTexMax;
+// uniform    vec2 fTexMax;
+
+attribute  	vec2 vTexCoord;
+varying 	vec2 fTexCoord;
+
+void main( )
+{
+    fTexCoord = vTexCoord;
+    // fTexMax = vTexMax;
+    gl_Position = projection * modelView * vPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+
+precision highp float;
+
+varying vec2 fTexCoord;
+uniform sampler2D texture;
+
+void main()
+{
+    gl_FragColor = texture2D(texture, fTexCoord);
+    gl_FragColor.w = 1.0;
+}
+</script>
+
+<script id="cyl-vertex-shader" type="x-shader/x-vertex"> // cylinder v-shader
+attribute vec4 vPosition;
+attribute vec4 vNormal;
+attribute vec4 vTangent;
+attribute vec2 vTexCoord;
+
+uniform mat4 modelView;
+uniform mat4 projection;
+uniform vec4 normal;
+uniform vec4 lightPosition;
+uniform mat3 normalMatrix;
+
+varying vec2 bumpSize;
+
+varying vec3 fNormal;
+varying vec3 fTangent;
+varying vec3 fEyeCoords;
+varying vec2 fTexCoord;
+varying vec3 L; /* light vector in texture-space coordinates */
+varying vec3 V; /* view vector in texture-space coordinates */
+
+void main( )
+{
+    gl_Position = projection*modelView*vPosition;
+
+    fTexCoord = vTexCoord;
+    fTangent = vTangent.xyz;
+    fNormal  = vNormal.xyz;
+
+    vec3 eyePosition = (modelViewMatrix*vPosition).xyz;
+    vec3 eyeLightPos = (modelViewMatrix*lightPosition).xyz;
+
+   /* normal, tangent and binormal in eye coordinates */
+    vec3 N = normalize(normalMatrix*normal.xyz);
+    vec3 T  = normalize(normalMatrix*fTangent);
+    vec3 B = cross(N, T);
+
+    /* light vector in texture space */
+    L.x = dot(T, eyeLightPos-eyePosition);
+    L.y = dot(B, eyeLightPos-eyePosition);
+    L.z = dot(N, eyeLightPos-eyePosition);
+
+    L = normalize(L);
+
+    /* view vector in texture space */
+    V.x = dot(T, -eyePosition);
+    V.y = dot(B, -eyePosition);
+    V.z = dot(N, -eyePosition);
+
+    V = normalize(V);
+
+    fNormal.x = dot(T, fNormal);
+    fNormal.y = dot(B, fNormal);
+    fNormal.z = dot(N, fNormal);
+}
+</script>
+<script id="cyl-fragment-shader" type="x-shader/x-fragment"> // cylinder f-shader
+
+precision highp float;
+
+uniform mat3 material;
+uniform vec3 lights;
+uniform mat3 normalMatrix;
+
+varying vec2 bumpSize;
+varying vec3 fNormal;
+varying vec3 fTangent;
+varying vec3 fEyeCoords;
+varying vec2 fTexCoord;
+varying vec3 L; /* light vector in texture-space coordinates */
+varying vec3 V; /* view vector in texture-space coordinates */
+
+uniform sampler2D texture;
+uniform sampler2D bumpmap;
+void main ()
+{
+    vec3 binormal = cross(fNormal, fTangent);
+    float curr   = texture2D(bumpmap, fTexCoord).r; 
+    float right  = texture2D(bumpmap, vec2(fTexCoord.x + 1/bumpSize.x, fTexCoord.y)).r;
+    float up     = texture2D(bumpmap, vec2(fTexCoord.x, fTexCoord.y + 1/bumpSize.y)).r;
+    vec3 bumpVector = (right - curr)*tangent + (up - curr)*binormal;
+}
+</script>
+
+<script id="sphere-vertex-shader" type="x-shader/x-vertex"> // sphere v-shader
+
+attribute  vec4 vPosition;
+attribute  vec4 vColor;
+attribute  vec4 vNormal;
+
+uniform    mat4 modelView;
+uniform    mat4 projection;
+
+varying     vec3 R;
+
+void main( )
+{
+    gl_Position = projection * modelView * vPosition;
+    vec4 eyePos = vPosition;
+    vec4 NN     = vNormal;
+    vec3 N      = normalize(NN.xyz);
+    R           = reflect(eyePos.xyz, N);
+}
+</script>
+<script id="sphere-fragment-shader" type="x-shader/x-fragment"> // sphere f-shader
+
+precision highp float;
+
+varying vec3 R;
+uniform samplerCube texture;
+
+void main()
+{
+    gl_FragColor = textureCube(texture, R);
+    gl_FragColor.w = 1.0;
+}
+</script>
+
+<script id="cube-vertex-shader" type="x-shader/x-vertex"> // cube v-shader
+
+attribute vec4 vPosition;
+attribute vec4 vVertexNormal;
+
+uniform mat4 modelView;
+uniform mat4 projection;
+uniform mat4 normalMat;
+
+varying vec3 vNormal;
+varying vec3 vEyeVec;
+
+attribute  	vec2 vTexCoord;
+varying 	vec2 fTexCoord;
+
+void main( )
+{
+	fTexCoord = vTexCoord;
+    
+    vec4 vertex = modelView * vPosition;
+    // vNormal = vec3(normalMat * vVertexNormal).xyz;
+    // vEyeVec = -vec3(vertex.xyz);
+
+    gl_Position = projection * vertex;
+}
+</script>
+<script id="cube-fragment-shader" type="x-shader/x-fragment"> // cube f-shader
+
+precision highp float;
+
+uniform float uShine;
+uniform vec3 uLightDir;
+
+uniform vec4 uLightAmb; // ambient
+uniform vec4 uLightDiff; // diffuse 
+uniform vec4 uLightSpec; // specular
+
+uniform vec4 uMatAmb; // material ambient property
+uniform vec4 uMatDiff;
+uniform vec4 uMatSpec;
+
+varying vec2 fTexCoord;
+uniform vec2 fTexMax;
+uniform sampler2D texture;
+
+varying vec3 vNormal;
+varying vec3 vEyeVec;
+varying vec4 fColor;
+void main()
+{
+    // lighting stuff
+    vec3 L = normalize(uLightDir);
+    vec3 N = normalize(vNormal);
+
+    // //Lambert's cosine law
+    float lambertTerm = dot(N,-L);
+
+    // //Ambient Term
+    vec4 Ia = uLightAmb * uMatAmb;
+    //Diffuse Term
+    vec4 Id = vec4(0.0,0.0,0.0,1.0);
+    //Specular 
+    vec4 Is = vec4(0.0,0.0,0.0,1.0);
+    if(lambertTerm > 0.0) //only if lambertTerm is positive
+    {
+        Id = uLightDiff * uMatDiff * lambertTerm; //add diffuse term
+
+        vec3 E = normalize(vEyeVec);
+        vec3 R = reflect(L, N);
+        float specular = pow( max(dot(R, E), 0.0), uShine);
+
+        Is = uLightSpec * uMatSpec * specular; //add specular term 
+    }
+ 
+    //  //Final color
+    vec4 finalColor = Ia + Id + Is;
+    finalColor.a = 1.0;
+    gl_FragColor = finalColor;// * texture2D(texture, fTexCoord);
+    gl_FragColor = texture2D(texture, fTexCoord);
+    gl_FragColor.w = 1.0;
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>	
+<script type="text/javascript" src = "cube.js"></script>
+<script type="text/javascript" src = "cylinder.js"></script>
+<script type="text/javascript" src = "sphere.js"></script>
+<script type="text/javascript" src = "bumpmap.js"></script>
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+<img id = "cubeImage" src = "Bump-Picture.jpg" hidden></img>
+<img id = "cubeMap" src = "Bump-Map.jpg" hidden></img>
+<img id = "negx" src = "negx.jpg" hidden></img>
+<img id = "negy" src = "negy.jpg" hidden></img>
+<img id = "negz" src = "negz.jpg" hidden></img>
+<img id = "posx" src = "posx.jpg" hidden></img>
+<img id = "posy" src = "posy.jpg" hidden></img>
+<img id = "posz" src = "posz.jpg" hidden></img>
+
+<br/>
+
+</body>
+</html>

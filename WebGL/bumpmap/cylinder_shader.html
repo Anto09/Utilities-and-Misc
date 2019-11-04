@@ -1,0 +1,94 @@
+<script id="cyl-vertex-shader" type="x-shader/x-vertex"> // cylinder v-shader
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+attribute vec3 vTangent;
+attribute vec2 vTexCoords;
+uniform mat4 modelView;
+uniform mat4 projection;
+varying vec3 fNormal;
+varying vec3 fTangent;
+varying vec3 fEyeCoords;
+varying vec2 fTexCoords;
+void main( )
+{
+    vec4 eyeCoords 	= modelView * vPosition;
+    gl_Position 	= projection * eyeCoords;
+    fNormal 		= normalize(vNormal);
+    fTangent 		= normalize(vTangent);
+    fEyeCoords 		= eyeCoords.xyz/eyeCoords.w;
+    fTexCoords 		= vTexCoords;
+}
+</script>
+<script id="cyl-fragment-shader" type="x-shader/x-fragment"> // cylinder f-shader
+
+precision mediump float;
+
+varying vec2 fTexCoord;
+uniform sampler2D texture;
+
+ struct MaterialProperties {
+    vec3 diffuseColor;
+    vec3 specularColor;
+    float specularExponent;
+};
+struct LightProperties {
+    bool enabled;
+    vec4 position;
+    vec3 color;
+};
+uniform MaterialProperties material;
+uniform LightProperties lights[3];
+uniform mat3 normalMatrix;
+uniform sampler2D texture;
+uniform sampler2D bumpmap;
+uniform vec2 bumpmapSize;
+varying vec3 fNormal;
+varying vec3 fTangent;
+varying vec3 fEyeCoords;
+varying vec2 fTexCoord;
+vec3 lightingEquation( LightProperties light, vec3 diffuse, vec3 specular, float specularColor, vec3 eyeCoords, vec3 N, vec3 V ) {
+       // N is normal vector, V is direction to viewer.
+    vec3 L, R; // Light direction and reflected light direction.
+    if ( light.position.w == 0.0 ) {
+        L = normalize( light.position.xyz );
+    }
+    else {
+        L = normalize( light.position.xyz/light.position.w - fEyeCoords );
+    }
+    if (dot(L,N) <= 0.0) {
+        return vec3(0.0);
+    }
+    vec3 reflection = dot(L,N) * light.color * diffuse;
+    R = -reflect(L,N);
+    if (dot(R,V) > 0.0) {
+        float factor = pow(dot(R,V),material.specularExponent);
+        reflection += factor * specular * light.color;
+    }
+    return reflection;
+}
+void main() {
+    vec3 normal 	= normalize( fNormal );
+    vec3 tangent 	= normalize( fTangent );
+    vec3 binormal 	= cross(normal,tangent);
+
+    float bm0 		= texture2D( bumpmap, fTexCoord ).r; 
+    float bmUp 		= texture2D( bumpmap, fTexCoord + vec2(0.0, 1.0/bumpmapSize.y) ).r; 
+    float bmRight 	= texture2D( bumpmap, fTexCoord + vec2(1.0/bumpmapSize.x, 0.0) ).r;
+
+    vec3 bumpVector = (bmRight - bm0)*tangent + (bmUp - bm0)*binormal;
+
+    normal += 5.0*bumpVector;
+    normal = normalize( normalMatrix*normal );
+    
+    vec3 viewDirection = normalize( -fEyeCoords);  // (Assumes a perspective projection.)
+    vec3 diffuse = texture2D( texture, fTexCoord ).rgb;
+    vec3 color = vec3(0.0);
+    for (int i = 0; i < 3; i++) {
+        if (lights[i].enabled) {
+            color += lightingEquation( lights[i], diffuse, material.specularColor, material.specularExponent,
+                                          fEyeCoords, normal, viewDirection);
+        }
+    }
+    gl_FragColor = vec4(color,1.0);
+}
+</script>

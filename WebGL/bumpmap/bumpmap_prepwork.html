@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+
+attribute  vec4 vPosition;
+
+uniform    mat4 modelView;
+uniform    mat4 projection;
+// uniform    vec2 vTexMax;
+// uniform    vec2 fTexMax;
+
+attribute  	vec2 vTexCoord;
+varying 	vec2 fTexCoord;
+
+void main( )
+{
+    fTexCoord = vTexCoord;
+    // fTexMax = vTexMax;
+    gl_Position = projection * modelView * vPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+
+precision mediump float;
+
+varying vec2 fTexCoord;
+uniform vec2 fTexMax;
+uniform sampler2D texture;
+
+void main()
+{
+    float d = 1.0/256.0;
+    float x = fTexCoord.x;
+    float y = fTexCoord.y;
+    
+    vec4 gx, gy;
+    
+       
+    // gx = 3.0*texture2D( texture, vec2(x+d, y)) + texture2D( texture, vec2(x+d, y+d)) + texture2D( texture, vec2(x+d, y-d)) - 
+    // 	 3.0*texture2D( texture, vec2(x-d, y)) - texture2D( texture, vec2(x-d, y+d)) - texture2D( texture, vec2(x-d, y-d));
+         
+    // gy = 3.0*texture2D( texture, vec2(x, y+d)) + texture2D( texture, vec2(x+d, y+d)) + texture2D( texture, vec2(x-d, y+d)) - 
+    // 	 3.0*texture2D( texture, vec2(x, y-d)) - texture2D( texture, vec2(x+d, y-d)) - texture2D( texture, vec2(x-d, y-d));
+    // gl_FragColor = sqrt(gx*gx + gy*gy);
+    gl_FragColor = texture2D(texture, vec2(	x, y));
+
+    gl_FragColor.w = 1.0;
+
+    /*
+    float d = 1.0/256.0;
+    float x = fTexCoord.x;
+    float y = fTexCoord.y;
+    
+    gl_FragColor = 10.0*abs(
+        texture2D( texture, vec2(x+d, y))
+       -texture2D( texture, vec2(x-d, y)))
+       +10.0*abs(texture2D( texture, vec2(x, y+d))
+       -texture2D( texture, vec2(x, y-d)));
+
+    gl_FragColor.w = 1.0;
+    */
+}
+</script>
+
+<script id="cyl-vertex-shader" type="x-shader/x-vertex"> // cylinder v-shader
+
+attribute  vec4 vPosition;
+attribute  vec4 vColor;
+varying    vec4 fColor;
+
+
+uniform    mat4 modelView;
+uniform    mat4 projection;
+
+void main( )
+{
+    fColor = vColor;
+    gl_Position = projection * modelView * vPosition;
+}
+</script>
+<script id="cyl-fragment-shader" type="x-shader/x-fragment"> // cylinder f-shader
+
+precision mediump float;
+
+varying vec4 fColor;
+void main()
+{
+    gl_FragColor = fColor;
+}
+</script>
+
+<script id="sphere-vertex-shader" type="x-shader/x-vertex"> // sphere v-shader
+
+attribute  vec4 vPosition;
+attribute  vec4 vColor;
+varying    vec4 fColor;
+
+
+uniform    mat4 modelView;
+uniform    mat4 projection;
+
+void main( )
+{
+    fColor = vColor;
+    gl_Position = projection * modelView * vPosition;
+}
+</script>
+<script id="sphere-fragment-shader" type="x-shader/x-fragment"> // sphere f-shader
+
+precision mediump float;
+
+varying vec4 fColor;
+void main()
+{
+    gl_FragColor = fColor;
+}
+</script>
+
+<script id="cube-vertex-shader" type="x-shader/x-vertex"> // cube v-shader
+
+attribute  vec4 vPosition;
+attribute  vec4 vColor;
+varying    vec4 fColor;
+
+
+uniform    mat4 modelView;
+uniform    mat4 projection;
+
+void main( )
+{
+    fColor = vColor;
+    gl_Position = projection * modelView * vPosition;
+}
+</script>
+<script id="cube-fragment-shader" type="x-shader/x-fragment"> // cube f-shader
+
+precision mediump float;
+
+varying vec4 fColor;
+void main()
+{
+    gl_FragColor = fColor;
+}
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>	
+<script type="text/javascript" src = "cube.js"></script>
+<script type="text/javascript" src = "cylinder.js"></script>
+<script type="text/javascript" src = "sphere.js"></script>
+<script type="text/javascript" src = "bumpmap_prepwork.js"></script>
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br/>
+
+</body>
+</html>
